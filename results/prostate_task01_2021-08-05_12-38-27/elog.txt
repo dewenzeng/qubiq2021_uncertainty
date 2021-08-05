@@ -1,0 +1,39 @@
+the model will run on device:cuda:0
+creating model ...
+training data dir d:/data/QUBIQ2021/training_data_v3/training_data_v3\prostate\Training
+Training epoch:0, batch:0/10, lr:0.0001000, loss:0.6112
+Training epoch:0, batch:1/10, lr:0.0001000, loss:0.5994
+Training epoch:0, batch:2/10, lr:0.0001000, loss:0.5889
+Training epoch:0, batch:3/10, lr:0.0001000, loss:0.5742
+Training epoch:0, batch:4/10, lr:0.0001000, loss:0.5671
+Training epoch:0, batch:5/10, lr:0.0001000, loss:0.5611
+Training epoch:0, batch:6/10, lr:0.0001000, loss:0.5526
+Training epoch:0, batch:7/10, lr:0.0001000, loss:0.5439
+Training epoch:0, batch:8/10, lr:0.0001000, loss:0.5371
+Training epoch:0, batch:9/10, lr:0.0001000, loss:0.5368
+Validation epoch:0, batch:0/2, mean Dice:0.134316
+Validation epoch:0, batch:1/2, mean Dice:0.147435
+Validation Epoch: 1	Training Loss 0.6488 	Validation Dice 0.1474 	
+Training epoch:1, batch:0/10, lr:0.0001000, loss:0.4787
+Training epoch:1, batch:1/10, lr:0.0001000, loss:0.4745
+Training epoch:1, batch:2/10, lr:0.0001000, loss:0.4728
+Training epoch:1, batch:3/10, lr:0.0001000, loss:0.4630
+Training epoch:1, batch:4/10, lr:0.0001000, loss:0.4575
+Training epoch:1, batch:5/10, lr:0.0001000, loss:0.4541
+Training epoch:1, batch:6/10, lr:0.0001000, loss:0.4562
+Training epoch:1, batch:7/10, lr:0.0001000, loss:0.4510
+Training epoch:1, batch:8/10, lr:0.0001000, loss:0.4458
+Training epoch:1, batch:9/10, lr:0.0001000, loss:0.4431
+Training epoch:2, batch:0/10, lr:0.0001000, loss:0.3936
+Training epoch:2, batch:1/10, lr:0.0001000, loss:0.3890
+Training epoch:2, batch:2/10, lr:0.0001000, loss:0.3871
+Training epoch:2, batch:3/10, lr:0.0001000, loss:0.3847
+Training epoch:2, batch:4/10, lr:0.0001000, loss:0.3862
+Training epoch:2, batch:5/10, lr:0.0001000, loss:0.3836
+Training epoch:2, batch:6/10, lr:0.0001000, loss:0.3808
+Training epoch:2, batch:7/10, lr:0.0001000, loss:0.3820
+Training epoch:2, batch:8/10, lr:0.0001000, loss:0.3797
+Training epoch:2, batch:9/10, lr:0.0000999, loss:0.3786
+Validation epoch:2, batch:0/2, mean Dice:0.238851
+Validation epoch:2, batch:1/2, mean Dice:0.246563
+Validation Epoch: 3	Training Loss 0.3850 	Validation Dice 0.2466 	
