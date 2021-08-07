@@ -1,4 +1,0 @@
-the model will run on device:cuda:0
-creating model ...
-training data dir d:/data/QUBIQ2021/training_data_v3/training_data_v3\prostate\Training
-Training epoch:0, batch:0/10, lr:0.0001000, loss:0.9992

@@ -12,8 +12,9 @@ parser.add_argument('--results_dir', metavar='RESULTS_DIR', default='./results',
 # Data
 parser.add_argument("--train_base_dir", type=str, default="d:/data/QUBIQ2021/training_data_v3/training_data_v3")
 parser.add_argument("--vali_base_dir", type=str, default="d:/data/QUBIQ2021/validation_data_qubiq2021/validation_data_qubiq2021")
-parser.add_argument("--dataset", type=str, default='prostate')
-parser.add_argument("--task", type=str, default='task01')
+parser.add_argument("--test_base_dir", type=str, default="d:/data/QUBIQ2021/validation_data_qubiq2021/validation_data_qubiq2021")
+parser.add_argument("--dataset", type=str, default='prostate', help='can be brain-growth, brain-tumor, kidney, pancreas, pancreatic-lesion, prostate')
+parser.add_argument("--task", type=str, default='task02')
 parser.add_argument('--batch_size', type=int, default=5)
 parser.add_argument('--seed', type=int, default=1234)
 
@@ -25,7 +26,7 @@ parser.add_argument("--classes", type=int, default=2)
 # Train
 # parser.add_argument("--experiment_name", type=str, default="")
 parser.add_argument("--restart", default=False, action='store_true')
-parser.add_argument("--pretrained_model_path", type=str, default='/afs/crc.nd.edu/user/d/dzeng2/UnsupervisedSegmentation/results/supervised_v3_train_2020-10-26_18-41-29/model/latest.pth')
+parser.add_argument("--pretrained_model_path", type=str, default='./results/pancreatic-lesion_task01_2021-08-06_06-33-00/model/latest.pth')
 parser.add_argument("--epochs", type=int, default=200)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--min_lr", type=float, default=1e-6)

@@ -9,11 +9,13 @@ from .dataset_utils import get_train_dataset_path, get_vali_dataset_path, matplo
 from .augmentation import *
 import matplotlib.pyplot as plt
 
+# can only handle training and validtion set cause this class read the image and label at the same time
 class QUBIQDataset(Dataset):
 
     def __init__(self, purpose, args):
 
         self.purpose = purpose
+        self.dataset = args.dataset
         if purpose == 'train':
             self.data_dir = get_train_dataset_path(args.dataset, args.train_base_dir)
         else:
@@ -22,143 +24,94 @@ class QUBIQDataset(Dataset):
         self.labels = []
         folders = glob(self.data_dir+'/case*')
         folders.sort()
-        for folder in folders:
-            self.images.append(os.path.join(folder,'image.nii.gz'))
-            # since we have multiple labels per image, we need to automatically find how many
-            # and load them one by one
-            label_fns = glob(folder+'/'+args.task+'*')
-            label_fns.sort()
-            # num_labels = len(label_fns)
-            self.labels.append(label_fns)
+        # if we are dealing with 3D images, we split them into 2D slices
+        if args.dataset in ['pancreas', 'pancreatic-lesion']:
+            for folder in folders:
+                # read image
+                img_itk = sitk.ReadImage(os.path.join(folder,'image.nii.gz'))
+                img_npy = sitk.GetArrayFromImage(img_itk).squeeze()
+                img_npy = img_npy.transpose(2,0,1)
+                img_npy[img_npy<-1500] = -1500
+                img_npy = 255 * (img_npy.astype(np.float64) - img_npy.min()) / (img_npy.max() - img_npy.min())
+                img_npy = img_npy.astype(np.uint8)
+                # read labels
+                label_fns = glob(folder+'/'+args.task+'*')
+                label_fns.sort()
+                tmp_label_list = []
+                # let's get the min and max slice where there are labels
+                label_sums = []
+                for label_fn in label_fns:
+                    label_itk = sitk.ReadImage(label_fn)
+                    label_npy = sitk.GetArrayFromImage(label_itk).squeeze().astype(np.uint8)
+                    label_npy = label_npy.transpose(2,0,1)
+                    tmp_label_list.append(label_npy)
+                    label_sums.append(label_npy.sum(axis=(1,2)))
+                label_sums = np.stack(label_sums,axis=0).mean(axis=0)
+                min_slice = np.where(label_sums == label_sums[label_sums>0][0])[0][0]
+                max_slice = np.where(label_sums == label_sums[label_sums>0][-1])[0][0]
+                # print(f'min_slice:{min_slice}, max_slice:{max_slice}')
+                # for slice_idx in range(img_npy.shape[0]):
+                for slice_idx in range(min_slice, max_slice):
+                    self.images.append(pad_if_not_square(img_npy[slice_idx]))
+                    self.labels.append([pad_if_not_square(label[slice_idx]) for label in tmp_label_list])
+        else:
+            for folder in folders:
+                self.images.append(os.path.join(folder,'image.nii.gz'))
+                # since we have multiple labels per image, we need to automatically find how many
+                # and load them one by one
+                label_fns = glob(folder+'/'+args.task+'*')
+                label_fns.sort()
+                # num_labels = len(label_fns)
+                self.labels.append(label_fns)
         self.patch_size = args.patch_size
         # self.classes = args.classes
 
     def __getitem__(self, index):
         
-        img_itk = sitk.ReadImage(self.images[index])
-        img_npy = sitk.GetArrayFromImage(img_itk).squeeze()
-        # normalize the image
-        img_npy = 255 * (img_npy.astype(np.float) - img_npy.min()) / (img_npy.max() - img_npy.min())
-        img_npy = img_npy.astype(np.uint8)
-        img_npy = pad_if_not_square(img_npy)
-        label_npy_list = []
-        for label_fn in self.labels[index]:
-            label_itk = sitk.ReadImage(label_fn)
-            label_npy = sitk.GetArrayFromImage(label_itk).squeeze().astype(np.uint8)
-            label_npy = pad_if_not_square(label_npy)
-            label_npy_list.append(label_npy)
-
         train_transform = Compose([
-            AdjustSaturation(0.4),
-            AdjustContrast(0.4),
-            AdjustBrightness(0.4),
-            AdjustHue(0.4),
-            RandomTranslate(offset=(0.2, 0.2)),
-            RandomRotate(degree=30),
-            RandomSizedCrop(size=self.patch_size,scale=(0.9, 1.)),
-        ])
+                AdjustSaturation(0.2),
+                AdjustContrast(0.2),
+                AdjustBrightness(0.2),
+                AdjustHue(0.2),
+                RandomTranslate(offset=(0.2, 0.2)),
+                RandomRotate(degree=10),
+                RandomSizedCrop(size=self.patch_size,scale=(0.9, 1.)),
+            ])
 
         test_transform = Compose([
             Scale(size=self.patch_size),
         ])
 
+        if self.dataset in ['pancreas', 'pancreatic-lesion']:
+            img_npy = self.images[index]
+            label_npy_list = self.labels[index]
+        else:
+            img_itk = sitk.ReadImage(self.images[index])
+            img_npy = sitk.GetArrayFromImage(img_itk).squeeze()
+            # if it's the multi modality case, then just use the first channel
+            # will change this in the future
+            if len(img_npy.shape) == 3:
+                img_npy = img_npy[0]
+            # normalize the image
+            img_npy = 255 * (img_npy.astype(np.float) - img_npy.min()) / (img_npy.max() - img_npy.min())
+            img_npy = img_npy.astype(np.uint8)
+            img_npy = pad_if_not_square(img_npy)
+            label_npy_list = []
+            for label_fn in self.labels[index]:
+                label_itk = sitk.ReadImage(label_fn)
+                label_npy = sitk.GetArrayFromImage(label_itk).squeeze().astype(np.uint8)
+                label_npy = pad_if_not_square(label_npy)
+                label_npy_list.append(label_npy)
+            # print(f'img_npy:{img_npy.shape}')
+            # print(f'label_npy:{label_npy_list[0].shape}')
+            # [print(f'label_npy:{label_npy.shape}') for label_npy in label_npy_list]
         if self.purpose == 'train':
             img_npy, label_npy_list = train_transform(img_npy, label_npy_list)
         else:
             img_npy, label_npy_list = test_transform(img_npy, label_npy_list)
 
-        # print(f'img_npy:{img_npy[0].shape}')
-        # print(f'label_npy:{label_npy_list[0].shape}')
-        # [print(f'label_npy:{label_npy.shape}') for label_npy in label_npy_list]
         return np.expand_dims(img_npy[0],0), label_npy_list
     
-    def prepare_for_contrast(self, index):
-
-        img = Image.open(self.image_files[index]).convert('L')
-        pseudo_label = self.pseudo_labels[index]
-        date = self.dates[index]
-
-        img = np.asarray(img).astype(np.uint8)
-        img = pad_if_not_square(img)
-        dummy_label = np.zeros_like(img)
-
-        # this one is the standard transform from paper moco-cxr https://github.com/stanfordmlgroup/MoCo-CXR
-        # train_transform = Compose([
-        #     RandomHorizontallyFlip(),
-        #     RandomRotate(degree=10),
-        #     RandomSizedCrop(size=self.patch_size,scale=(0.95, 1.)),
-        #     ToTensor(),
-        #     Normalize(mean=0.5408, std=0.5172),
-        # ])
-
-        train_transform = Compose([
-            AdjustSaturation(0.4),
-            AdjustContrast(0.4),
-            AdjustBrightness(0.4),
-            AdjustHue(0.4),
-            # AdjustGamma(0.4),
-            RandomTranslate(offset=(0.1, 0.1)),
-            # RandomHorizontallyFlip(),
-            RandomRotate(degree=10),
-            RandomSizedCrop(size=self.patch_size,scale=(0.95, 1.)),
-            ToTensor(),
-            # Normalize(mean=0.5408, std=0.5172),
-        ])
-
-        img1, _ = train_transform(img,dummy_label)
-        img2, _ = train_transform(img,dummy_label)
-
-        return img1, img2, pseudo_label, date
-
-    def prepare_for_supervised(self, index):
-
-        img = Image.open(self.image_files[index]).convert('L')
-        label = Image.open(self.label_files[index])
-
-        img = np.asarray(img).astype(np.uint8)
-        label = np.asarray(label).astype(np.uint8)
-
-        # # if use 3 classes
-        label[label==1] = 1
-        label[label==2] = 2
-        label[label==3] = 0
-
-        img = pad_if_not_square(img)
-        label = pad_if_not_square(label)
-
-        # if we have data augmentation
-        train_transform = Compose([
-            AdjustSaturation(0.4),
-            AdjustContrast(0.4),
-            AdjustBrightness(0.4),
-            AdjustHue(0.4),
-            RandomTranslate(offset=(0.1, 0.1)),
-            RandomRotate(degree=30),
-            RandomSizedCrop(size=self.patch_size,scale=(0.95, 1.)),
-            ToTensor(),
-        ])
-
-        # if we do not use any data augmentation
-        # train_transform = Compose([
-        #     Scale(size=self.patch_size),
-        #     ToTensor(),
-        # ])
-
-        test_transform = Compose([
-            Scale(size=self.patch_size),
-            ToTensor()
-        ])
-
-        # print(f'img:{img.shape}, label:{label.shape}')
-        if self.purpose == 'train':
-            img, label = train_transform(img, label)
-        else:
-            img, label = test_transform(img, label)
-        
-        # label = (label / 255.) * (self.classes - 1)
-
-        return img, label
-
     def __len__(self):
         return len(self.images)
 
@@ -169,7 +122,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_base_dir", type=str, default="d:/data/QUBIQ2021/training_data_v3/training_data_v3")
     parser.add_argument("--vali_base_dir", type=str, default="d:/data/QUBIQ2021/validation_data_qubiq2021/validation_data_qubiq2021")
-    parser.add_argument("--dataset", type=str, default='prostate')
+    parser.add_argument("--dataset", type=str, default='pancreas')
     parser.add_argument("--task", type=str, default='task01')
     parser.add_argument("--patch_size", type=int, default='512')
     args = parser.parse_args()
@@ -187,5 +140,5 @@ if __name__ == '__main__':
         plt.figure(3)
         img_grid = torchvision.utils.make_grid(label_list[1].unsqueeze(dim=1))
         matplotlib_imshow(img_grid, one_channel=False)
-        # plt.show()
-        # break
+        plt.show()
+        break

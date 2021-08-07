@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 import torch
 import random
-from network.unet2d import UNet2D
+from network.unet2d import UNet2D, UNet2D_ds
 from dataset.qubiq_dataset import QUBIQDataset
 import torch.nn.functional as F
 from myconfig import get_config
@@ -61,7 +61,7 @@ def run():
     args.model_result_dir = model_result_dir
     # create model
     logger.print("creating model ...")
-    model = UNet2D(in_channels=1, initial_filter_size=args.initial_filter_size, kernel_size=3, classes=args.classes, do_instancenorm=True, dropout=0)
+    model = UNet2D_ds(in_channels=1, initial_filter_size=args.initial_filter_size, kernel_size=3, classes=args.classes, do_instancenorm=True, dropout=0)
     if args.restart:
         logger.print('loading from saved model ' + args.pretrained_model_path)
         dict = torch.load(args.pretrained_model_path,

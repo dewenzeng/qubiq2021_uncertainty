@@ -152,9 +152,8 @@ class decoder(nn.Module):
         return layer
 
 class decoder_ds(nn.Module):
-    def __init__(self, initial_filter_size, classes):
+    def __init__(self, initial_filter_size, classes, dropout):
         super().__init__()
-        # self.concat_weight = torch.nn.Parameter(torch.FloatTensor(1), requires_grad=True)
         self.upscale5 = nn.ConvTranspose2d(initial_filter_size * 2 ** 4, initial_filter_size * 2 ** 3, kernel_size=2,
                                            stride=2)
         self.expand_4_1 = self.expand(initial_filter_size * 2 ** 4, initial_filter_size * 2 ** 3)
@@ -234,9 +233,10 @@ class decoder_ds(nn.Module):
         return layer[:, :, xy1:(xy1 + target_width), xy2:(xy2 + target_height)]
 
     @staticmethod
-    def expand(in_channels, out_channels, kernel_size=3):
+    def expand(in_channels, out_channels, kernel_size=3, dropout=0):
         layer = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size, padding=1),
+            nn.Dropout2d(dropout),
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(inplace=True),
         )
@@ -258,11 +258,11 @@ class UNet2D(nn.Module):
         return out
 
 class UNet2D_ds(nn.Module):
-    def __init__(self, in_channels=1, initial_filter_size=32, kernel_size=3, classes=4, do_instancenorm=True):
+    def __init__(self, in_channels=1, initial_filter_size=32, kernel_size=3, classes=4, do_instancenorm=True, dropout=0):
         super().__init__()
         
-        self.encoder = encoder(in_channels, initial_filter_size, kernel_size, do_instancenorm)
-        self.decoder = decoder_ds(initial_filter_size, classes)
+        self.encoder = encoder(in_channels, initial_filter_size, kernel_size, do_instancenorm, dropout)
+        self.decoder = decoder_ds(initial_filter_size, classes, dropout)
 
         self.apply(InitWeights_He(1e-2))
 
@@ -273,7 +273,7 @@ class UNet2D_ds(nn.Module):
         return out
 
 if __name__ == '__main__':
-    input = torch.randn(1,1,256,256)
-    model = UNet2D(in_channels=1, initial_filter_size=32, kernel_size=3, classes=2, dropout=1)
+    input = torch.randn(1,1,512,512)
+    model = UNet2D_ds(in_channels=1, initial_filter_size=32, kernel_size=3, classes=2, dropout=1)
     out = model(input)
     print(f'out:{out.shape}')

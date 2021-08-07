@@ -1,0 +1,11 @@
+# result
+results/
+
+# runs
+runs/
+
+# vscode cofig
+.vscode/
+
+# python compile files
+__pycache__
