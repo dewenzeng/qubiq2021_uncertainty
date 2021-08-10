@@ -273,7 +273,7 @@ class UNet2D_ds(nn.Module):
         return out
 
 if __name__ == '__main__':
-    input = torch.randn(1,1,512,512)
+    input = torch.randn(1,1,240,240)
     model = UNet2D_ds(in_channels=1, initial_filter_size=32, kernel_size=3, classes=2, dropout=1)
     out = model(input)
     print(f'out:{out.shape}')

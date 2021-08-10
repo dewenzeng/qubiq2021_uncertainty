@@ -3,41 +3,42 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def pad_if_too_small(data, sz):
-  reshape = (len(data.shape) == 2)
-  if reshape:
-    h, w = data.shape
-    data = data.reshape((h, w, 1))
+    reshape = (len(data.shape) == 2)
+    if reshape:
+        h, w = data.shape
+        data = data.reshape((h, w, 1))
 
-  h, w, c = data.shape
+    h, w, c = data.shape
 
-  if not (h >= sz and w >= sz):
-    # img is smaller than sz
-    # we are missing by at least 1 pixel in at least 1 edge
-    new_h, new_w = max(h, sz), max(w, sz)
-    new_data = np.zeros([new_h, new_w, c], dtype=data.dtype)
+    if not (h >= sz and w >= sz):
+        # img is smaller than sz
+        # we are missing by at least 1 pixel in at least 1 edge
+        new_h, new_w = max(h, sz), max(w, sz)
+        new_data = np.zeros([new_h, new_w, c], dtype=data.dtype)
 
-    # will get correct centre, 5 -> 2
-    centre_h, centre_w = int(new_h / 2.), int(new_w / 2.)
-    h_start, w_start = centre_h - int(h / 2.), centre_w - int(w / 2.)
+        # will get correct centre, 5 -> 2
+        centre_h, centre_w = int(new_h / 2.), int(new_w / 2.)
+        h_start, w_start = centre_h - int(h / 2.), centre_w - int(w / 2.)
 
-    new_data[h_start:(h_start + h), w_start:(w_start + w), :] = data
-  else:
-    new_data = data
-    new_h, new_w = h, w
+        new_data[h_start:(h_start + h), w_start:(w_start + w), :] = data
+    else:
+        new_data = data
+        new_h, new_w = h, w
 
-  if reshape:
-    new_data = new_data.reshape((new_h, new_w))
+    if reshape:
+        new_data = new_data.reshape((new_h, new_w))
 
-  return new_data
+    return new_data
 
 def pad_if_not_square(orig_data):
-  w, h = orig_data.shape
-  if w == h:
-    return orig_data
-  elif w > h:
-    return pad_if_too_small(orig_data,w)
-  else:
-    return pad_if_too_small(orig_data,h)
+
+    w, h = orig_data.shape
+    if w == h:
+        return orig_data
+    elif w > h:
+        return pad_if_too_small(orig_data,w)
+    else:
+        return pad_if_too_small(orig_data,h)
 
 def get_train_dataset_path(dataset, base_dir):
     if dataset == 'brain-growth':

@@ -38,8 +38,12 @@ def run():
         os.mkdir(image_result_dir)
     args.image_result_dir = image_result_dir
     # create model
+    if args.dataset == 'brain-tumor':
+        args.in_channels = 4
+    else:
+        args.in_channels = 1
     logger.print("creating model ...")
-    model = UNet2D(in_channels=1, initial_filter_size=args.initial_filter_size, kernel_size=3, classes=args.classes, do_instancenorm=True, dropout=0)
+    model = UNet2D(in_channels=args.in_channels, initial_filter_size=args.initial_filter_size, kernel_size=3, classes=args.classes, do_instancenorm=True, dropout=0)
     logger.print('loading from saved model ' + args.pretrained_model_path)
     dict = torch.load(args.pretrained_model_path,
                         map_location=lambda storage, loc: storage)
@@ -82,8 +86,9 @@ def run():
                     img_npy_slice = pad_if_not_square(img_npy_slice)
                     original_shape_squared = img_npy_slice.shape
                     fake_label_npy = np.ones(img_npy_slice.shape)
-                    img_npy_slice, label_npy_list = test_transform(img_npy_slice, [fake_label_npy])
-                    img_npy_slice = np.expand_dims(img_npy_slice[0],0)
+                    img_npy_slice, _ = test_transform([img_npy_slice], [fake_label_npy])
+                    img_npy_slice = np.stack(img_npy_slice,0)
+                    img_npy_slice = img_npy_slice.astype(np.float64) / 255
                     img_torch = torch.from_numpy(img_npy_slice)[None].float().to(args.device)
                     x_out = model(img_torch)
                     x_out = F.softmax(x_out, dim=1)[0,-1,:,:].cpu().numpy()
@@ -103,27 +108,35 @@ def run():
                 img_itk = sitk.ReadImage(images[index])
                 # print(f'img_npy:{sitk.GetArrayFromImage(img_itk).shape}')
                 img_npy = sitk.GetArrayFromImage(img_itk).squeeze()
-                if len(img_npy.shape) == 3:
-                    img_npy = img_npy[0]
-                original_shape = img_npy.shape
+                if args.dataset == 'kidney':
+                    img_npy[img_npy<-400] = -400
+                    img_npy[img_npy>2000] = 2000
+                original_shape = img_npy.shape[-2:]
                 # normalize the image
                 img_npy = 255 * (img_npy.astype(np.float) - img_npy.min()) / (img_npy.max() - img_npy.min())
                 img_npy = img_npy.astype(np.uint8)
-                img_npy = pad_if_not_square(img_npy)
-                original_shape_squared = img_npy.shape
-                fake_label_npy = np.ones(img_npy.shape)
-                img_npy, label_npy_list = test_transform(img_npy, [fake_label_npy])
-                img_npy = np.expand_dims(img_npy[0],0)
+                if len(img_npy.shape) == 3:
+                    img_npy = [pad_if_not_square(img_npy[i]) for i in range(img_npy.shape[0])]
+                else:
+                    img_npy = [pad_if_not_square(img_npy)]
+                original_shape_squared = img_npy[0].shape
+                fake_label_npy = np.ones(img_npy[0].shape)
+                img_npy, _ = test_transform(img_npy, [fake_label_npy])
+                img_npy = np.stack(img_npy,0)
+                img_npy = img_npy.astype(np.float64) / 255
                 img_torch = torch.from_numpy(img_npy)[None].float().to(args.device)
                 x_out = model(img_torch)
                 x_out = F.softmax(x_out, dim=1)[0,-1,:,:].cpu().numpy()
                 # scale the prediction to the original size squared
                 out_resized = resize(x_out, (original_shape_squared[0], original_shape_squared[1]), anti_aliasing=True)
                 # crop to the orginal size
-                out_resized = out_resized[int(out_resized.shape[0]/2.)-int(original_shape[0]/2.):int(out_resized.shape[0]/2.)+int(original_shape[0]/2.), int(out_resized.shape[1]/2.)-int(original_shape[1]/2.):int(out_resized.shape[1]/2.)+int(original_shape[1]/2.)]
+                out_resized = out_resized[int(out_resized.shape[0]/2.)-int(original_shape[0]/2.):int(out_resized.shape[0]/2.)-int(original_shape[0]/2.)+original_shape[0], 
+                        int(out_resized.shape[1]/2.)-int(original_shape[1]/2.):int(out_resized.shape[1]/2.)-int(original_shape[1]/2.)+original_shape[1]]
                 # save this image
-                out_resized_itk = sitk.GetImageFromArray(out_resized)
-                # out_resized_itk = sitk.GetImageFromArray(np.expand_dims(out_resized, 0))
+                if len(img_itk.GetOrigin()) == 3:
+                    out_resized_itk = sitk.GetImageFromArray(np.expand_dims(out_resized, 0))
+                else:
+                    out_resized_itk = sitk.GetImageFromArray(out_resized)
                 out_resized_itk.SetOrigin(img_itk.GetOrigin())
                 out_resized_itk.SetDirection(img_itk.GetDirection())
                 out_resized_itk.SetSpacing(img_itk.GetSpacing())

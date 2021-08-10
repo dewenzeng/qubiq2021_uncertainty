@@ -1,3 +1,4 @@
+from numpy import float64
 import torch
 import torchvision
 import SimpleITK as sitk
@@ -47,12 +48,12 @@ class QUBIQDataset(Dataset):
                     tmp_label_list.append(label_npy)
                     label_sums.append(label_npy.sum(axis=(1,2)))
                 label_sums = np.stack(label_sums,axis=0).mean(axis=0)
-                min_slice = np.where(label_sums == label_sums[label_sums>0][0])[0][0]
-                max_slice = np.where(label_sums == label_sums[label_sums>0][-1])[0][0]
+                min_slice = max(np.where(label_sums == label_sums[label_sums>0][0])[0][0]-5, 0)
+                max_slice = min(np.where(label_sums == label_sums[label_sums>0][-1])[0][0]+5, tmp_label_list[0].shape[0]-1)
                 # print(f'min_slice:{min_slice}, max_slice:{max_slice}')
                 # for slice_idx in range(img_npy.shape[0]):
                 for slice_idx in range(min_slice, max_slice):
-                    self.images.append(pad_if_not_square(img_npy[slice_idx]))
+                    self.images.append([pad_if_not_square(img_npy[slice_idx])])
                     self.labels.append([pad_if_not_square(label[slice_idx]) for label in tmp_label_list])
         else:
             for folder in folders:
@@ -67,14 +68,25 @@ class QUBIQDataset(Dataset):
         # self.classes = args.classes
 
     def __getitem__(self, index):
+
+        # this is for prostate dataset
+        # train_transform = Compose([
+        #         AdjustSaturation(0.2),
+        #         AdjustContrast(0.2),
+        #         AdjustBrightness(0.2),
+        #         AdjustHue(0.2),
+        #         RandomTranslate(offset=(0.2, 0.2)),
+        #         RandomRotate(degree=10),
+        #         RandomSizedCrop(size=self.patch_size,scale=(0.9, 1.)),
+        #     ])
         
         train_transform = Compose([
                 AdjustSaturation(0.2),
                 AdjustContrast(0.2),
                 AdjustBrightness(0.2),
                 AdjustHue(0.2),
-                RandomTranslate(offset=(0.2, 0.2)),
-                RandomRotate(degree=10),
+                RandomTranslate(offset=(0.1, 0.1)),
+                # RandomRotate(degree=10),
                 RandomSizedCrop(size=self.patch_size,scale=(0.9, 1.)),
             ])
 
@@ -88,14 +100,16 @@ class QUBIQDataset(Dataset):
         else:
             img_itk = sitk.ReadImage(self.images[index])
             img_npy = sitk.GetArrayFromImage(img_itk).squeeze()
-            # if it's the multi modality case, then just use the first channel
-            # will change this in the future
-            if len(img_npy.shape) == 3:
-                img_npy = img_npy[0]
+            if self.dataset == 'kidney':
+                img_npy[img_npy<-400] = -400
+                img_npy[img_npy>2000] = 2000
             # normalize the image
             img_npy = 255 * (img_npy.astype(np.float) - img_npy.min()) / (img_npy.max() - img_npy.min())
             img_npy = img_npy.astype(np.uint8)
-            img_npy = pad_if_not_square(img_npy)
+            if len(img_npy.shape) == 3:
+                img_npy = [pad_if_not_square(img_npy[i]) for i in range(img_npy.shape[0])]
+            else:
+                img_npy = [pad_if_not_square(img_npy)]
             label_npy_list = []
             for label_fn in self.labels[index]:
                 label_itk = sitk.ReadImage(label_fn)
@@ -110,7 +124,10 @@ class QUBIQDataset(Dataset):
         else:
             img_npy, label_npy_list = test_transform(img_npy, label_npy_list)
 
-        return np.expand_dims(img_npy[0],0), label_npy_list
+        img_npy = np.stack(img_npy,0)
+        # img_npy = np.expand_dims(img_npy,0)
+        img_npy = img_npy.astype(float64) / 255
+        return img_npy, label_npy_list
     
     def __len__(self):
         return len(self.images)
@@ -122,7 +139,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_base_dir", type=str, default="d:/data/QUBIQ2021/training_data_v3/training_data_v3")
     parser.add_argument("--vali_base_dir", type=str, default="d:/data/QUBIQ2021/validation_data_qubiq2021/validation_data_qubiq2021")
-    parser.add_argument("--dataset", type=str, default='pancreas')
+    parser.add_argument("--dataset", type=str, default='pancreatic-lesion')
     parser.add_argument("--task", type=str, default='task01')
     parser.add_argument("--patch_size", type=int, default='512')
     args = parser.parse_args()
@@ -131,6 +148,8 @@ if __name__ == '__main__':
     for batch_idx, tup in enumerate(train_dataloader):
         img, label_list = tup
         print(f'img:{img.shape}')
+        print(f'img max:{img.max()}')
+        print(f'label max:{label_list[0].max()}')
         plt.figure(1)
         img_grid = torchvision.utils.make_grid(img)
         matplotlib_imshow(img_grid, one_channel=False)

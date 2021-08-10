@@ -38,7 +38,7 @@ module load pytorch/pytorch1.5.1
 train_base_dir=/data/users/dewenzeng/data/qubiq2021/training_data_v3/
 vali_base_dir=/data/users/dewenzeng/data/qubiq2021/validation_data_qubiq2021/
 test_base_dir=/data/users/dewenzeng/data/qubiq2021/validation_data_qubiq2021/
-python3 main.py --device cuda:0 --batch_size 10 --epochs 200 --train_base_dir ${train_base_dir} --vali_base_dir ${vali_base_dir} --test_base_dir ${test_base_dir} --lr 1e-4 --min_lr 1e-6 --dataset prostate --task task02 \
+python3 main.py --device cuda:0 --batch_size 5 --epochs 400 --train_base_dir ${train_base_dir} --vali_base_dir ${vali_base_dir} --test_base_dir ${test_base_dir} --lr 1e-4 --min_lr 1e-6 --dataset pancreatic-lesion --task task01 \
 --initial_filter_size 48 --classes 2 --patch_size 512
 
 # python3 predict.py --device cuda:0 --test_base_dir ${test_base_dir} --dataset kidney --task task01 \

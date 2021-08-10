@@ -61,7 +61,12 @@ def run():
     args.model_result_dir = model_result_dir
     # create model
     logger.print("creating model ...")
-    model = UNet2D_ds(in_channels=1, initial_filter_size=args.initial_filter_size, kernel_size=3, classes=args.classes, do_instancenorm=True, dropout=0)
+    if args.dataset == 'brain-tumor':
+        args.in_channels = 4
+    else:
+        args.in_channels = 1
+    # model = UNet2D_ds(in_channels=1, initial_filter_size=args.initial_filter_size, kernel_size=3, classes=args.classes, do_instancenorm=True, dropout=0)
+    model = UNet2D(in_channels=args.in_channels, initial_filter_size=args.initial_filter_size, kernel_size=3, classes=args.classes, do_instancenorm=True, dropout=0)
     if args.restart:
         logger.print('loading from saved model ' + args.pretrained_model_path)
         dict = torch.load(args.pretrained_model_path,
@@ -94,7 +99,7 @@ def run():
             logger.print('Validation Epoch: {0}\t'
                             'Training Loss {val_loss:.4f} \t'
                             'Validation Dice {val_dice:.4f} \t'
-                            .format(epoch + 1, val_loss=val_loss, val_dice=val_dice))
+                            .format(epoch, val_loss=val_loss, val_dice=val_dice))
 
             # results.add(epoch=epoch + 1, train_loss=train_loss, val_loss=val_loss)
             # results.save()
