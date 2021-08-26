@@ -81,12 +81,12 @@ class QUBIQDataset(Dataset):
         #     ])
         
         train_transform = Compose([
-                AdjustSaturation(0.2),
-                AdjustContrast(0.2),
-                AdjustBrightness(0.2),
-                AdjustHue(0.2),
+                AdjustSaturation(0.1),
+                AdjustContrast(0.1),
+                AdjustBrightness(0.1),
+                AdjustHue(0.1),
                 RandomTranslate(offset=(0.1, 0.1)),
-                # RandomRotate(degree=10),
+                RandomRotate(degree=3),
                 RandomSizedCrop(size=self.patch_size,scale=(0.9, 1.)),
             ])
 
@@ -102,7 +102,8 @@ class QUBIQDataset(Dataset):
             img_npy = sitk.GetArrayFromImage(img_itk).squeeze()
             if self.dataset == 'kidney':
                 img_npy[img_npy<-400] = -400
-                img_npy[img_npy>2000] = 2000
+                # img_npy[img_npy>2000] = 2000
+                img_npy[img_npy>800] = 800
             # normalize the image
             img_npy = 255 * (img_npy.astype(np.float) - img_npy.min()) / (img_npy.max() - img_npy.min())
             img_npy = img_npy.astype(np.uint8)
@@ -114,6 +115,8 @@ class QUBIQDataset(Dataset):
             for label_fn in self.labels[index]:
                 label_itk = sitk.ReadImage(label_fn)
                 label_npy = sitk.GetArrayFromImage(label_itk).squeeze().astype(np.uint8)
+                if label_npy.max() == 0:
+                    print(f'label_fn:{label_fn}')
                 label_npy = pad_if_not_square(label_npy)
                 label_npy_list.append(label_npy)
             # print(f'img_npy:{img_npy.shape}')
@@ -139,25 +142,26 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_base_dir", type=str, default="d:/data/QUBIQ2021/training_data_v3/training_data_v3")
     parser.add_argument("--vali_base_dir", type=str, default="d:/data/QUBIQ2021/validation_data_qubiq2021/validation_data_qubiq2021")
-    parser.add_argument("--dataset", type=str, default='pancreatic-lesion')
-    parser.add_argument("--task", type=str, default='task01')
-    parser.add_argument("--patch_size", type=int, default='512')
+    parser.add_argument("--dataset", type=str, default='brain-tumor')
+    parser.add_argument("--task", type=str, default='task02')
+    parser.add_argument("--patch_size", type=int, default='240')
     args = parser.parse_args()
     train_dataset = QUBIQDataset('train',args)
     train_dataloader = torch.utils.data.DataLoader(train_dataset,batch_size=5,shuffle=True,num_workers=1,drop_last=False)
     for batch_idx, tup in enumerate(train_dataloader):
         img, label_list = tup
-        print(f'img:{img.shape}')
-        print(f'img max:{img.max()}')
-        print(f'label max:{label_list[0].max()}')
-        plt.figure(1)
-        img_grid = torchvision.utils.make_grid(img)
-        matplotlib_imshow(img_grid, one_channel=False)
-        plt.figure(2)
-        img_grid = torchvision.utils.make_grid(label_list[0].unsqueeze(dim=1))
-        matplotlib_imshow(img_grid, one_channel=False)
-        plt.figure(3)
-        img_grid = torchvision.utils.make_grid(label_list[1].unsqueeze(dim=1))
-        matplotlib_imshow(img_grid, one_channel=False)
-        plt.show()
-        break
+        # print(f'img:{img.shape}')
+        # print(f'img max:{img.max()}')
+        # print(f'label max:{label_list[0].max()}')
+        # plt.figure(1)
+        # img_grid = torchvision.utils.make_grid(img)
+        # matplotlib_imshow(img_grid, one_channel=False)
+        # plt.figure(2)
+        # img_grid = torchvision.utils.make_grid(label_list[0].unsqueeze(dim=1))
+        # matplotlib_imshow(img_grid, one_channel=False)
+        # plt.figure(3)
+        # smooth_label = torch.stack([label.float() for label in label_list]).mean(dim=0)
+        # img_grid = torchvision.utils.make_grid(smooth_label.unsqueeze(dim=1))
+        # matplotlib_imshow(img_grid, one_channel=False)
+        # plt.show()
+        # break

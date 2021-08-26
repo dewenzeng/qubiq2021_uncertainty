@@ -37,6 +37,7 @@ def run():
     if not os.path.exists(image_result_dir):
         os.mkdir(image_result_dir)
     args.image_result_dir = image_result_dir
+    logger.print(' '.join(f'{k}={v} \n' for k, v in vars(args).items()))
     # create model
     if args.dataset == 'brain-tumor':
         args.in_channels = 4
@@ -110,7 +111,7 @@ def run():
                 img_npy = sitk.GetArrayFromImage(img_itk).squeeze()
                 if args.dataset == 'kidney':
                     img_npy[img_npy<-400] = -400
-                    img_npy[img_npy>2000] = 2000
+                    img_npy[img_npy>800] = 800
                 original_shape = img_npy.shape[-2:]
                 # normalize the image
                 img_npy = 255 * (img_npy.astype(np.float) - img_npy.min()) / (img_npy.max() - img_npy.min())
@@ -126,7 +127,8 @@ def run():
                 img_npy = img_npy.astype(np.float64) / 255
                 img_torch = torch.from_numpy(img_npy)[None].float().to(args.device)
                 x_out = model(img_torch)
-                x_out = F.softmax(x_out, dim=1)[0,-1,:,:].cpu().numpy()
+                x_out = torch.nn.Sigmoid()(x_out).squeeze().cpu().numpy()
+                # x_out = F.softmax(x_out, dim=1)[0,-1,:,:].cpu().numpy()
                 # scale the prediction to the original size squared
                 out_resized = resize(x_out, (original_shape_squared[0], original_shape_squared[1]), anti_aliasing=True)
                 # crop to the orginal size

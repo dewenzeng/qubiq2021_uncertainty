@@ -59,6 +59,7 @@ def run():
     if not os.path.exists(model_result_dir):
         os.mkdir(model_result_dir)
     args.model_result_dir = model_result_dir
+    logger.print(' '.join(f'{k}={v} \n' for k, v in vars(args).items()))
     # create model
     logger.print("creating model ...")
     if args.dataset == 'brain-tumor':
@@ -83,7 +84,8 @@ def run():
     validate_loader = torch.utils.data.DataLoader(validate_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, drop_last=False)
 
     # # define loss function (criterion) and optimizer
-    criterion = torch.nn.CrossEntropyLoss()
+    # criterion = torch.nn.CrossEntropyLoss()
+    criterion = torch.nn.BCELoss()
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr, weight_decay=1e-5)
     scheduler = LR_Scheduler(args.lr_scheduler, args.lr, args.epochs, len(train_loader), min_lr=args.min_lr)
     best_dice = 0
@@ -97,7 +99,7 @@ def run():
             val_loss, val_dice = validate(validate_loader, model, criterion, epoch, logger, args)
 
             logger.print('Validation Epoch: {0}\t'
-                            'Training Loss {val_loss:.4f} \t'
+                            'Validation Loss {val_loss:.4f} \t'
                             'Validation Dice {val_dice:.4f} \t'
                             .format(epoch, val_loss=val_loss, val_dice=val_dice))
 
@@ -105,6 +107,8 @@ def run():
             # results.save()
             if best_dice < val_dice:
                 best_dice = val_dice
+                save_dict = {"net": model.state_dict()}
+                torch.save(save_dict, os.path.join(args.model_result_dir, "best_model.pth"))
             writer.add_scalar('validate_dice', val_dice, epoch)
             writer.add_scalar('best_dice', best_dice, epoch)
             # save model
@@ -119,16 +123,19 @@ def train(data_loader, model, criterion, epoch, optimizer, scheduler, logger, ar
     for batch_idx, tup in enumerate(data_loader):
         img, label_list = tup
         image_var = img.float().to(args.device)
-        label_list = [label.long().to(args.device) for label in label_list]
+        # label_list = [label.long().to(args.device) for label in label_list]
+        # scheduler(optimizer, batch_idx, epoch)
+        # x_out = model(image_var)
+        # # get the average cross entropy as the loss function
+        # loss_list = [criterion(x_out, label) for label in label_list]
+        # loss = torch.stack(loss_list).mean(dim=0)
+        # # print(f'out.min:{x_out.min()}, out.max:{x_out.max()}')
+        label = torch.stack([label.float().to(args.device) for label in label_list]).mean(dim=0)
         scheduler(optimizer, batch_idx, epoch)
         x_out = model(image_var)
-        # Do softmax
-        # x_out = F.softmax(x_out, dim=1)
-        # get the average cross entropy as the loss function
-        loss_list = [criterion(x_out, label) for label in label_list]
-        loss = torch.stack(loss_list).mean(dim=0)
-        # print(f'out.min:{x_out.min()}, out.max:{x_out.max()}')
-        # loss = criterion(x_out, label.squeeze())
+        # do sigmoid
+        x_out = torch.nn.Sigmoid()(x_out).squeeze(dim=1)
+        loss = criterion(x_out, label)
         losses.update(loss.item(), image_var.size(0))
         optimizer.zero_grad()
         loss.backward()
@@ -142,20 +149,25 @@ def train(data_loader, model, criterion, epoch, optimizer, scheduler, logger, ar
 
 def validate(data_loader, model, criterion, epoch, logger, args):
     model.eval()
-    metric_val = SegmentationMetric(args.classes)
+    # metric_val = SegmentationMetric(args.classes)
+    metric_val = SegmentationMetric(2)
     metric_val.reset()
-    losses = AverageMeter()
     threshold_list = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
     with torch.no_grad():
         for batch_idx, tup in enumerate(data_loader):
             img, label_list = tup
             image_var = img.float().to(args.device)
             label_list = [label.long().to(args.device) for label in label_list]
+            # method 1
+            # x_out = model(image_var)
+            # loss_list = [criterion(x_out, label) for label in label_list]
+            # loss = torch.stack(loss_list).mean(dim=0)
+            # losses.update(loss.item(), image_var.size(0))
+            # x_out = F.softmax(x_out, dim=1)[:,-1,:,:]
+            # method 2
             x_out = model(image_var)
-            loss_list = [criterion(x_out, label) for label in label_list]
-            loss = torch.stack(loss_list).mean(dim=0)
-            losses.update(loss.item(), image_var.size(0))
-            x_out = F.softmax(x_out, dim=1)[:,-1,:,:]
+            # do sigmoid
+            x_out = torch.nn.Sigmoid()(x_out).squeeze(dim=1)
             for threhold in threshold_list:
                 for label in label_list:
                     metric_val.update(label.cpu().numpy(), x_out.cpu().numpy()>threhold)
@@ -175,7 +187,7 @@ def validate(data_loader, model, criterion, epoch, logger, args):
             #     img_grid = torchvision.utils.make_grid(label)
             #     writer.add_image('val_epoch_fold'+str(fold) + '_' + str(epoch) + '_label', img_grid)
     pixAcc, mIoU, mDice = metric_val.get()
-    return losses.avg, mDice
+    return 0, mDice
 
 if __name__ == '__main__':
     run()

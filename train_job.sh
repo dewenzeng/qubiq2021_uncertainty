@@ -38,8 +38,8 @@ module load pytorch/pytorch1.5.1
 train_base_dir=/data/users/dewenzeng/data/qubiq2021/training_data_v3/
 vali_base_dir=/data/users/dewenzeng/data/qubiq2021/validation_data_qubiq2021/
 test_base_dir=/data/users/dewenzeng/data/qubiq2021/validation_data_qubiq2021/
-python3 main.py --device cuda:0 --batch_size 5 --epochs 400 --train_base_dir ${train_base_dir} --vali_base_dir ${vali_base_dir} --test_base_dir ${test_base_dir} --lr 1e-4 --min_lr 1e-6 --dataset pancreatic-lesion --task task01 \
---initial_filter_size 48 --classes 2 --patch_size 512
+python3 main.py --device cuda:0 --batch_size 5 --epochs 600 --train_base_dir ${train_base_dir} --vali_base_dir ${vali_base_dir} --test_base_dir ${test_base_dir} --lr 1e-3 --min_lr 1e-6 --dataset brain-tumor --task task02 \
+--initial_filter_size 32 --classes 1 --patch_size 240
 
 # python3 predict.py --device cuda:0 --test_base_dir ${test_base_dir} --dataset kidney --task task01 \
 # --initial_filter_size 32 --classes 2 --patch_size 512 --pretrained_model_path /data/users/dewenzeng/code/qubiq2021_uncertainty/results/kidney_task01_2021-08-06_04-51-12/model/latest.pth
